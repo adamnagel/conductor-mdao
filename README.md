@@ -5,3 +5,14 @@
 
 How to create a task definition
 https://netflix.github.io/conductor/labs/beginner/#creating-task-definitions
+
+# How to run
+Go to the `conductor` repo and run stuff:
+```
+pushd server
+../gradlew server
+```
+```
+pushd ui
+gulp watch
+```
