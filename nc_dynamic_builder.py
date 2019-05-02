@@ -11,25 +11,6 @@ from vahana_scripts.hover_power import HoverPower
 from vahana_scripts.cruise_power import CruisePower
 
 
-class TestThing(Component):
-    def __init__(self):
-        super(TestThing, self).__init__()
-
-        self.add_param('Param1', val=0.5, units='m')
-        self.add_param('a_string', val='default', pass_by_obj=True)
-        self.add_output('Output1', val=0.0)
-        self.add_output('a_string_twice', val='', pass_by_obj=True)
-
-    def solve_nonlinear(self, params, unknowns, resids):
-        sleep(0.5)
-        unknowns['Output1'] = params['Param1'] + 2
-        unknowns['a_string_twice'] = params['a_string'] * 2
-
-
-components = dict()
-interface_descriptions = dict()
-
-
 def define_as_task(component):
     ipd = component._init_params_dict
     iud = component._init_unknowns_dict
@@ -53,16 +34,6 @@ def define_as_task(component):
 
     # print(json.dumps(task, indent=2))
     return task
-
-
-def run(task):
-    params = task['inputData']
-    unknowns = {}
-
-    return {
-        'status': 'COMPLETED',
-        'output': unknowns,
-    }
 
 
 def unregister_default_tasks(mc):
