@@ -32,7 +32,7 @@ def define_as_task(component):
         'outputKeys': list(interface_description['Unknowns'].keys()),
     }
 
-    # print(json.dumps(task, indent=2))
+    print(json.dumps(task, indent=2))
     return task
 
 
