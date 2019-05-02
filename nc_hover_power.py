@@ -214,7 +214,7 @@ def main():
     # Register this task
     mc = MetadataClient('http://localhost:8080/api')
     # unregister_default_tasks(mc)
-    mc.updateTaskDef(task_def)
+    mc.registerTaskDefs([task_def])
 
     # Start worker
     cw = ConductorWorker('http://localhost:8080/api', 1, 0.1)
