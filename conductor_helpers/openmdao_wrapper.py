@@ -1,8 +1,7 @@
-from conductor_task import ConductorTask
-from conductor.conductor import MetadataClient, WorkflowClient
+from task import Task
 
 
-class OpenMdaoWrapper(ConductorTask):
+class OpenMdaoWrapper(Task):
     def __init__(self, component, *args, **kwargs):
         super(OpenMdaoWrapper, self).__init__(*args, **kwargs)
 
@@ -48,7 +47,7 @@ if __name__ == '__main__':
                 'inputParameters': {k: t.inputs[k] for k in t.inputs.keys()},
             }
         ],
-        'outputParameters': {k: '$({}.output.{}'.format(t.name, k) for k in t.outputs.keys()},
+        'outputParameters': {k: '${{{}.output.{}}}'.format(t.name, k) for k in t.outputs.keys()},
         "failureWorkflow": "cleanup_encode_resources",
         "restartable": True,
         "workflowStatusListenerEnabled": True,

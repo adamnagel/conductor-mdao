@@ -3,7 +3,7 @@ from conductor.conductor import MetadataClient
 from conductor.ConductorWorker import ConductorWorker
 
 
-class ConductorTask(object):
+class Task(object):
     def __init__(self):  # name=None, description=None):
         self.inputs = {}
         self.outputs = {}
@@ -60,5 +60,5 @@ class ConductorTask(object):
 
 
 if __name__ == '__main__':
-    t = ConductorTask('TestCase', 'Only a test.')
+    t = Task()  # 'TestCase', 'Only a test.')
     t.register()

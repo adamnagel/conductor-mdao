@@ -1,7 +1,7 @@
-from conductor_task import ConductorTask
+from task import Task
 
 
-class SimpleTask(ConductorTask):
+class SimpleTask(Task):
     def __init__(self, name=None, description=None):
         super(SimpleTask, self).__init__()
 
