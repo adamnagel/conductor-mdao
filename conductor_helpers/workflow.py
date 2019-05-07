@@ -23,7 +23,7 @@ class Workflow(object):
         self.tasks[name] = task
 
     def add_input(self, name, default):
-        pass
+        self.inputs[name] = default
 
     def add_output(self, name):
         pass
@@ -39,11 +39,17 @@ class Workflow(object):
             task['inputParameters'] = {}
 
             for dst, src in self.connections.items():
+                # If the destination is within this task, we link to the input
                 if dst.startswith(task_name + '.'):
                     input = dst.split('.')[1]
 
-                    src_split = src.split('.')
-                    source = '${{{}.output.{}}}'.format(src_split[0], src_split[1])
+                    if '.' in src:
+                        # Src comes from another task
+                        src_split = src.split('.')
+                        source = '${{{}.output.{}}}'.format(src_split[0], src_split[1])
+                    else:
+                        # Src comes from a workflow input
+                        source = '${{workflow.input.{}}}'.format(src)
 
                     task['inputParameters'][input] = source
 
@@ -55,6 +61,7 @@ class Workflow(object):
             'version': 1,
             'tasks': tasks,
             'outputParameters': {},
+            'inputParameters': list(self.inputs.keys()),
             'failureWorkflow': 'cleanup_encode_resources',
             'restarteable': True,
             'workflowStatusListenerEnabled': True,
@@ -71,17 +78,30 @@ class Workflow(object):
     def register(self, endpoint='http://localhost:8080/api'):
         mc = MetadataClient(endpoint)
         workflow_def = self._definition()
+
+        import json
+        print(json.dumps(workflow_def, indent=2))
+
         mc.updateWorkflowDefs([workflow_def])
 
-    def start(self):
+    def start(self, start_tasks=False):
         wc = WorkflowClient('http://localhost:8080/api')
         wc.startWorkflow(wfName=self.name,
-                         inputjson={})
+                         inputjson=self.inputs)
+
+        if start_tasks:
+            for idx, key in enumerate(self.tasks.keys(), start=1):
+                self.tasks[key].start(wait=idx == len(self.tasks.keys()))
+
+    def register_tasks(self):
+        for k, v in self.tasks.items():
+            v.register()
 
 
 if __name__ == '__main__':
     from openmdao.examples.hohmann_transfer import VCircComp, TransferOrbitComp, DeltaVComp
     from openmdao_wrapper import OpenMdaoWrapper
+    from sum_task import SumTask
     from json import dumps
 
     leo = OpenMdaoWrapper(VCircComp())
@@ -89,7 +109,9 @@ if __name__ == '__main__':
     transfer = OpenMdaoWrapper(TransferOrbitComp())
     dv1 = OpenMdaoWrapper(DeltaVComp())
     dv2 = OpenMdaoWrapper(DeltaVComp())
-    tasks = [leo, geo, transfer, dv1, dv2]
+
+    dv_total = SumTask('dv_total', num_inputs=2)
+    dinc_total = SumTask('dinc_total', num_inputs=2)
 
     workflow = Workflow('Hohmann Transfer', 'A test for the Workflow class.')
     workflow.add_task('leo', leo)
@@ -97,21 +119,40 @@ if __name__ == '__main__':
     workflow.add_task('transfer', transfer)
     workflow.add_task('dv1', dv1)
     workflow.add_task('dv2', dv2)
+    workflow.add_task('dv_total', dv_total)
+    workflow.add_task('dinc_total', dinc_total)
+
+    workflow.add_input('dinc1', 28.5 / 2)
+    workflow.add_input('dinc2', 28.5 / 2)
+    workflow.add_input('r1', 6778.137)
+    workflow.add_input('r2', 42164.0)
+    workflow.add_input('mu', 398600.4418)
+
+    workflow.connect('r1', 'leo.r')
+    workflow.connect('r1', 'transfer.rp')
+    workflow.connect('r2', 'geo.r')
+    workflow.connect('r2', 'transfer.ra')
+
+    workflow.connect('mu', 'leo.mu')
+    workflow.connect('mu', 'geo.mu')
+    workflow.connect('mu', 'transfer.mu')
 
     workflow.connect('leo.vcirc', 'dv1.v1')
     workflow.connect('transfer.vp', 'dv1.v2')
+    workflow.connect('dinc1', 'dv1.dinc')
 
     workflow.connect('transfer.va', 'dv2.v1')
     workflow.connect('geo.vcirc', 'dv2.v2')
-    # workflow.connect('dinc2', 'dv2.dinc')
+    workflow.connect('dinc2', 'dv2.dinc')
 
-    print(dumps(workflow._definition(), indent=2))
+    workflow.connect('dv1.delta_v', 'dv_total.i1')
+    workflow.connect('dv2.delta_v', 'dv_total.i2')
 
-    for task in tasks:
-        task.register()
+    workflow.connect('dinc1', 'dinc_total.i1')
+    workflow.connect('dinc2', 'dinc_total.i2')
 
+    # print(dumps(workflow._definition(), indent=2))
+
+    workflow.register_tasks()
     workflow.register()
-    workflow.start()
-
-    for idx, task in enumerate(tasks, start=1):
-        task.start(wait=idx == len(tasks))
+    workflow.start(start_tasks=True)

@@ -4,9 +4,10 @@ from conductor.ConductorWorker import ConductorWorker
 
 
 class Task(object):
-    def __init__(self):  # name=None, description=None):
+    def __init__(self, use_defaults=False):  # name=None, description=None):
         self.inputs = {}
         self.outputs = {}
+        self.use_defaults = use_defaults
 
         # if name:
         #     self.name = name
@@ -31,9 +32,17 @@ class Task(object):
             'name': self.name,
             'description': self.description,
             'inputKeys': list(self.inputs.keys()),
-            'inputTemplate': self.inputs,
             'outputKeys': list(self.outputs.keys()),
         }
+
+        # Only create inputTemplate if we plan to use defaults
+        if self.use_defaults:
+            task_def['inputTemplate'] = self.inputs
+        else:
+            pass
+
+        import json
+        json.dumps(task_def)
 
         mc.registerTaskDefs([task_def])
 

@@ -2,7 +2,7 @@ from task import Task
 
 
 class OpenMdaoWrapper(Task):
-    def __init__(self, component, *args, **kwargs):
+    def __init__(self, component, use_defaults=False, *args, **kwargs):
         super(OpenMdaoWrapper, self).__init__(*args, **kwargs)
 
         self.name = component.__class__.__name__
@@ -15,6 +15,8 @@ class OpenMdaoWrapper(Task):
             self.add_output(k)
 
         self.component = component
+
+        self.use_defaults = use_defaults
 
     def run(self, inputs, outputs):
         self.component.solve_nonlinear(inputs, outputs, {})
