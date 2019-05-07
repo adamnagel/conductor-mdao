@@ -25,8 +25,16 @@ class Workflow(object):
     def add_input(self, name, default):
         self.inputs[name] = default
 
-    def add_output(self, name):
-        pass
+    def add_output(self, name, src):
+        if '.' in src:
+            # Src comes from another task
+            src_split = src.split('.')
+            source = '${{{}.output.{}}}'.format(src_split[0], src_split[1])
+        else:
+            # Src comes from a workflow input
+            source = '${{workflow.input.{}}}'.format(src)
+
+        self.outputs[name] = source
 
     def connect(self, src, dst):
         self.connections[dst] = src
@@ -60,7 +68,7 @@ class Workflow(object):
             'description': self.description,
             'version': 1,
             'tasks': tasks,
-            'outputParameters': {},
+            'outputParameters': self.outputs,
             'inputParameters': list(self.inputs.keys()),
             'failureWorkflow': 'cleanup_encode_resources',
             'restarteable': True,
@@ -79,19 +87,30 @@ class Workflow(object):
         mc = MetadataClient(endpoint)
         workflow_def = self._definition()
 
-        import json
-        print(json.dumps(workflow_def, indent=2))
+        # import json
+        # print(json.dumps(workflow_def, indent=2))
 
         mc.updateWorkflowDefs([workflow_def])
 
     def start(self, start_tasks=False):
         wc = WorkflowClient('http://localhost:8080/api')
-        wc.startWorkflow(wfName=self.name,
-                         inputjson=self.inputs)
+        id = wc.startWorkflow(wfName=self.name,
+                              inputjson=self.inputs)
+        import json
+        print(json.dumps(id, indent=2))
 
         if start_tasks:
             for idx, key in enumerate(self.tasks.keys(), start=1):
-                self.tasks[key].start(wait=idx == len(self.tasks.keys()))
+                # self.tasks[key].start(wait=idx == len(self.tasks.keys()))
+                self.tasks[key].start(wait=False)
+
+        import time
+        res = wc.getWorkflow(id)
+        while res['status'] != 'COMPLETED':
+            time.sleep(0.1)
+            res = wc.getWorkflow(id)
+
+        print(json.dumps(res['output'], indent=2))
 
     def register_tasks(self):
         for k, v in self.tasks.items():
@@ -150,6 +169,9 @@ if __name__ == '__main__':
 
     workflow.connect('dinc1', 'dinc_total.i1')
     workflow.connect('dinc2', 'dinc_total.i2')
+
+    workflow.add_output('dv1_deltav', 'dv1.delta_v')
+    workflow.add_output('dv2_deltav', 'dv2.delta_v')
 
     # print(dumps(workflow._definition(), indent=2))
 
