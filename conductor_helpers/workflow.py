@@ -92,7 +92,7 @@ class Workflow(object):
 
         mc.updateWorkflowDefs([workflow_def])
 
-    def start(self, start_tasks=False):
+    def start(self, start_tasks=False, wait=True):
         wc = WorkflowClient('http://localhost:8080/api')
         id = wc.startWorkflow(wfName=self.name,
                               inputjson=self.inputs)
@@ -101,16 +101,25 @@ class Workflow(object):
 
         if start_tasks:
             for idx, key in enumerate(self.tasks.keys(), start=1):
-                # self.tasks[key].start(wait=idx == len(self.tasks.keys()))
-                self.tasks[key].start(wait=False)
+                if wait:
+                    # We will poll the workflow, so no need to keep the last task running.
+                    self.tasks[key].start(wait=False)
+                else:
+                    # We won't poll the workflow, so keep the last task running.
+                    self.tasks[key].start(wait=idx == len(self.tasks.keys()))
 
-        import time
-        res = wc.getWorkflow(id)
-        while res['status'] != 'COMPLETED':
-            time.sleep(0.1)
+        if wait:
+            import time
             res = wc.getWorkflow(id)
+            while res['status'] != 'COMPLETED':
+                time.sleep(0.1)
+                res = wc.getWorkflow(id)
 
-        print(json.dumps(res['output'], indent=2))
+            print(json.dumps(res['output'], indent=2))
+            return res['output']
+        
+        else:
+            return id
 
     def register_tasks(self):
         for k, v in self.tasks.items():
